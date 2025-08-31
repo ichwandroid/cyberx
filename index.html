@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ichwanap_ // Netrunner</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono&display=swap');
+        
+        /*
+        =====================================================================
+        CATATAN PENTING UNTUK FONT NEMESYS:
+        Karena NEMESYS adalah font kustom, Anda perlu mengunduhnya (misal dari DaFont).
+        Letakkan file font (misal: NEMESYS.woff2) di folder yang sama 
+        dengan file index.html ini saat diunggah ke GitHub.
+
+        Setelah itu, hapus komentar pada kode @font-face di bawah ini untuk mengaktifkannya.
+        =====================================================================
+        */
+        
+        @font-face {
+            font-family: 'Nemesys';
+            src: url('NEMESYS.woff2') format('woff2'), 
+                 url('NEMESYS.ttf') format('truetype');
+        }
+        
+
+        :root {
+            --bg-color: #000000;
+            --primary-color: #fcee0a; /* Cyberpunk Yellow */
+            --secondary-color: rgba(252, 238, 10, 0.05);
+            --border-color: rgba(252, 238, 10, 0.2);
+            --text-color: #d0d0d0;
+            /* Prioritas: Nemesys -> Orbitron -> sans-serif */
+            --font-primary: 'Nemesys', 'Orbitron', sans-serif; 
+            --font-secondary: 'Share Tech Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            color: var(--text-color);
+            font-family: var(--font-secondary); /* Default font sekarang adalah font sekunder */
+            overflow-x: hidden;
+            background-color: var(--bg-color);
+            background-image: url('https://images.unsplash.com/photo-1572338563316-831518558224?q=80&w=2070&auto-format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            cursor: none;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at center, transparent 40%, var(--bg-color) 90%);
+            z-index: -1;
+        }
+        
+        /* Menggunakan font utama untuk semua judul dan elemen penting */
+        .logo-text, .nav-link, .hero-title, .section-title, .box-title, .skill-tag, .project-link strong {
+            font-family: var(--font-primary);
+            letter-spacing: 2px; /* Menambahkan jarak antar huruf */
+        }
+
+        /* Canvas untuk animasi background */
+        #background-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2; /* Diletakkan paling belakang */
+        }
+
+        /* Custom Cursor */
+        .cursor-dot, .cursor-outline {
+            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999; transform: translate(-50%, -50%);
+        }
+        .cursor-dot { width: 6px; height: 6px; background-color: var(--primary-color); }
+        .cursor-outline { width: 30px; height: 30px; border: 2px solid var(--primary-color); transition: all 0.1s ease-out; }
+
+        .container {
+            max-width: 1200px; margin: 0 auto; padding: 0 20px;
+        }
+
+        /* --- HEADER --- */
+        .header {
+            padding: 40px 0; display: flex; justify-content: space-between; align-items: center;
+        }
+        
+        .logo-img {
+            height: 50px;
+            width: 50px;
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 10px 100%, 0 80%);
+        }
+
+        .nav-link {
+            font-size: 1rem; text-decoration: none; color: var(--primary-color); padding: 10px 25px;
+            background-color: var(--secondary-color); border: 1px solid var(--border-color); transition: all 0.3s ease;
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 10px 100%, 0 80%);
+        }
+        .nav-link:hover { background: var(--primary-color); color: var(--bg-color); }
+        
+        /* --- HERO SECTION --- */
+        .hero {
+            min-height: 80vh; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+            position: relative;
+        }
+
+        .hero-title {
+            font-size: clamp(3rem, 10vw, 7rem); color: var(--text-color); line-height: 1; text-transform: uppercase;
+            position: relative;
+        }
+        
+        .hero-title .glitch-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            content: attr(data-text); background-color: transparent;
+            text-shadow: -1px 0 #ff00c1;
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+        }
+        .hero-title:hover .glitch-layer { animation: glitch 0.3s steps(2, end) infinite; }
+        .hero-title .glitch-layer:nth-child(2) { text-shadow: 1px 0 #00ffff; animation-delay: -0.15s; }
+
+        @keyframes glitch {
+            0% { clip-path: polygon(0 2%, 100% 2%, 100% 43%, 0 43%); } 20% { clip-path: polygon(0 42%, 100% 42%, 100% 47%, 0 47%); } 40% { clip-path: polygon(0 75%, 100% 75%, 100% 23%, 0 23%); } 60% { clip-path: polygon(0 50%, 100% 50%, 100% 13%, 0 13%); } 80% { clip-path: polygon(0 23%, 100% 23%, 100% 80%, 0 80%); } 100% { clip-path: polygon(0 80%, 100% 80%, 100% 25%, 0 25%); }
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1rem, 2.5vw, 1.2rem); line-height: 1.6; margin-top: 25px; max-width: 600px;
+            display: flex;
+            align-items: center;
+        }
+        .typing-cursor {
+            display: inline-block;
+            width: 3px;
+            height: 1.2em;
+            background-color: var(--primary-color);
+            margin-left: 8px;
+            animation: blink 0.8s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        /* --- BENTO GRID SECTION --- */
+        .bento-grid-wrapper { padding: 100px 0; }
+        .section-title {
+            font-size: 3rem; margin-bottom: 40px; display: inline-block; padding: 5px 20px;
+            color: var(--primary-color); border: 1px solid var(--border-color);
+            clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+        }
+
+        .bento-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: minmax(220px, auto); gap: 20px;
+        }
+
+        .bento-box {
+            background-color: var(--secondary-color); border: 1px solid var(--border-color); padding: 30px;
+            transition: all 0.3s ease; position: relative;
+            clip-path: polygon(0 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%);
+            display: flex;
+            flex-direction: column;
+        }
+        .bento-box p {
+            line-height: 1.7;
+        }
+        
+        .bento-box:hover { transform: translateY(-5px); background: var(--secondary-color); border-color: var(--primary-color); }
+        
+        /* Spanning rules */
+        .box-skills { grid-column: 1 / 2; grid-row: 1 / 3; }
+        .box-project { grid-column: 2 / 4; }
+        .box-contact { grid-column: 2 / 3; grid-row: 2/3; }
+        .box-socials { grid-column: 3 / 4; grid-row: 2/3; }
+
+        
+        @media (max-width: 900px) {
+            .bento-grid { grid-template-columns: 1fr; }
+            .bento-box { grid-column: auto !important; grid-row: auto !important; }
+        }
+        @media (max-width: 600px) {
+            .profile-content { flex-direction: column; text-align: center; }
+        }
+
+        .box-title { font-weight: bold; font-size: 1.5rem; color: var(--primary-color); margin-bottom: 15px; }
+        
+        .project-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .action-btn {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            padding: 10px 20px;
+            text-decoration: none;
+            font-family: var(--font-primary);
+            margin-top: 20px;
+            align-self: flex-start;
+            clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%);
+            transition: transform 0.2s ease;
+        }
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .skills-list { display: flex; flex-wrap: wrap; gap: 12px; }
+        .skill-tag { background-color: rgba(252, 238, 10, 0.1); border: 1px solid var(--border-color); padding: 6px 16px; font-size: 1rem; clip-path: polygon(0 0, 100% 0, 100% 100%, 10px 100%, 0 75%); }
+
+        .socials-list { display: flex; gap: 25px; margin-top: 15px; }
+        .socials-list a { 
+            color: var(--primary-color); 
+            width: 40px; 
+            height: 40px; 
+            transition: all 0.3s; 
+        }
+        .socials-list a:hover { 
+            color: var(--text-color); 
+            transform: scale(1.2); 
+        }
+        
+        /* --- FOOTER --- */
+        .footer { text-align: center; padding: 40px 20px; margin-top: 100px; font-size: 0.9rem; border-top: 1px solid var(--border-color); }
+    </style>
+</head>
+<body>
+    <canvas id="background-canvas"></canvas>
+    <div class="cursor-dot"></div>
+    <div class="cursor-outline"></div>
+
+    <main class="container">
+        <header class="header">
+            <img src="https://placehold.co/60x60/fcee0a/000000?text=I_" alt="Logo Ichwanap" class="logo-img">
+            <a href="mailto:emailanda@example.com" class="nav-link interactive-text">Contact</a>
+        </header>
+
+        <!-- HERO SECTION -->
+        <section class="hero">
+            <div>
+                <h1 class="hero-title interactive-text" data-text="ICHWANAP_">
+                    ICHWANAP_
+                    <span class="glitch-layer" data-text="ICHWANAP_"></span>
+                    <span class="glitch-layer" data-text="ICHWANAP_"></span>
+                </h1>
+                <p class="hero-subtitle"><span id="typing-text"></span><span class="typing-cursor"></span></p>
+            </div>
+        </section>
+
+        <!-- BENTO GRID SECTION -->
+        <section class="bento-grid-wrapper">
+            <h2 class="section-title interactive-text">DATA SHARDS</h2>
+            <div class="bento-grid">
+
+                <div class="bento-box box-skills">
+                    <h3 class="box-title interactive-text">CYBERDECK</h3>
+                    <div class="skills-list">
+                        <span class="skill-tag">JavaScript</span>
+                        <span class="skill-tag">React / Next.js</span>
+                        <span class="skill-tag">GSAP</span>
+                        <span class="skill-tag">Three.js</span>
+                        <span class="skill-tag">Node.js</span>
+                        <span class="skill-tag">Figma</span>
+                        <span class="skill-tag">TailwindCSS</span>
+                        <span class="skill-tag">Web3</span>
+                    </div>
+                </div>
+
+                <div class="bento-box box-project">
+                    <div class="project-content">
+                        <div>
+                            <h3 class="box-title interactive-text">CASE FILE : 01</h3>
+                            <strong>ANBK Photo Capture Apps</strong>
+                            <p>Aplikasi berbasis web untuk proktor ANBK guna mengambil foto peserta ujian dengan mudah, lengkap dengan timer dan penamaan file otomatis sesuai username siswa.</p>
+                        </div>
+                        <a href="ANBK Photo Capture Apps.zip" class="action-btn" download>Download Apps</a>
+                    </div>
+                </div>
+
+                <div class="bento-box box-contact">
+                    <div class="project-content">
+                        <div>
+                            <h3 class="box-title interactive-text">GET IN TOUCH</h3>
+                            <p>Punya pekerjaan? Kirimkan briefnya. Mari kita ciptakan sesuatu yang luar biasa.</p>
+                        </div>
+                        <a href="mailto:emailanda@example.com" class="action-btn">CONTACT ME</a>
+                    </div>
+                </div>
+                
+                 <div class="bento-box box-socials">
+                    <h3 class="box-title interactive-text">GHOST IN THE NET</h3>
+                    <div class="socials-list">
+                        <a href="https://www.instagram.com/ichwanap_" target="_blank" title="Instagram">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                            </svg>
+                        </a>
+                        <a href="https://github.com/ichwanap_" target="_blank" title="GitHub">
+                           <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><title>GitHub</title><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+                        </a>
+                    </div>
+                 </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>WAKE UP, SAMURAI. WE HAVE A WEB TO BURN. &copy; 2025</p>
+    </footer>
+
+    <!-- GSAP Core & Plugins -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js"></script>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            gsap.registerPlugin(ScrollTrigger, TextPlugin);
+
+            // --- DYNAMIC BACKGROUND PARTICLES ---
+            const canvas = document.getElementById('background-canvas');
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            const particleCount = 150;
+
+            function setCanvasSize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+
+            class Particle {
+                constructor() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.size = Math.random() * 1.5 + 0.5;
+                    this.speedX = (Math.random() * 0.4) - 0.2;
+                    this.speedY = (Math.random() * 0.4) - 0.2;
+                    this.color = `rgba(252, 238, 10, ${Math.random() * 0.5 + 0.1})`;
+                }
+                update() {
+                    this.x += this.speedX;
+                    this.y += this.speedY;
+                    if (this.x < 0 || this.x > canvas.width) this.x = Math.random() * canvas.width;
+                    if (this.y < 0 || this.y > canvas.height) this.y = Math.random() * canvas.height;
+                }
+                draw() {
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            function initParticles() {
+                particles = [];
+                for (let i = 0; i < particleCount; i++) {
+                    particles.push(new Particle());
+                }
+            }
+
+            function animateParticles() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (const particle of particles) {
+                    particle.update();
+                    particle.draw();
+                }
+                requestAnimationFrame(animateParticles);
+            }
+
+            setCanvasSize();
+            initParticles();
+            animateParticles();
+            window.addEventListener('resize', () => {
+                setCanvasSize();
+                initParticles();
+            });
+
+            // --- CUSTOM CURSOR ANIMATION ---
+            const cursorDot = document.querySelector('.cursor-dot');
+            const cursorOutline = document.querySelector('.cursor-outline');
+            window.addEventListener('mousemove', (e) => {
+                gsap.to(cursorDot, { x: e.clientX, y: e.clientY, duration: 0.2, ease: 'power2.out' });
+                gsap.to(cursorOutline, { x: e.clientX, y: e.clientY, duration: 0.6, ease: 'expo.out' });
+            });
+            document.querySelectorAll('a, .bento-box').forEach(el => {
+                el.addEventListener('mouseenter', () => gsap.to(cursorOutline, { scale: 1.5, duration: 0.3 }));
+                el.addEventListener('mouseleave', () => gsap.to(cursorOutline, { scale: 1, duration: 0.3 }));
+            });
+
+            // --- GSAP ANIMATIONS ---
+            const masterTimeline = gsap.timeline();
+            masterTimeline.from(".hero-title", { opacity: 0, duration: 1, ease: "power3.out", delay: 0.2 });
+
+            // Typing effect
+            const subtitleText = "Seorang operator gabut yang lebih sering mikirin cara otomatisasi kerjaan daripada kerjaan itu sendiri. Kode dibuat demi rebahan yang lebih berkualitas.";
+            masterTimeline.to("#typing-text", {
+                text: subtitleText,
+                duration: 4,
+                ease: "none",
+            }, "-=0.5");
+
+
+            // Text hover scramble effect
+            const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#%&?*@";
+            document.querySelectorAll('.interactive-text').forEach(el => {
+                const isHeroTitle = el.classList.contains('hero-title');
+                // Untuk hero-title, targetkan child pertamanya (text node). Untuk yang lain, targetkan elemen itu sendiri.
+                const targetNode = isHeroTitle ? el.firstChild : el;
+                const originalText = isHeroTitle ? targetNode.textContent.trim() : el.innerText;
+                
+                el.dataset.originalText = originalText;
+
+                el.addEventListener('mouseenter', () => {
+                    // Mencegah pemicu ulang jika animasi sudah berjalan
+                    if(el.dataset.animating === 'true') return;
+                    el.dataset.animating = 'true';
+
+                    let iteration = 0;
+                    const interval = setInterval(() => {
+                        targetNode.textContent = el.dataset.originalText
+                            .split("")
+                            .map((letter, index) => {
+                                if(index < iteration) {
+                                    return el.dataset.originalText[index];
+                                }
+                                return letters[Math.floor(Math.random() * letters.length)]
+                            })
+                            .join("");
+                        
+                        if(iteration >= el.dataset.originalText.length){ 
+                            clearInterval(interval);
+                            // Setelah animasi, pastikan teks asli pulih sempurna.
+                            targetNode.textContent = el.dataset.originalText;
+                            el.dataset.animating = 'false';
+                        }
+                        
+                        iteration += 1 / 2;
+                    }, 30);
+                });
+            });
+            
+            // Bento Grid Repeating Scroll Animation
+            gsap.utils.toArray('.bento-box').forEach((box) => {
+                gsap.fromTo(box, 
+                    { opacity: 0, y: 100, scale: 0.95 }, 
+                    {
+                        opacity: 1, y: 0, scale: 1, duration: 0.8, ease: 'power3.out',
+                        scrollTrigger: {
+                            trigger: box,
+                            start: 'top 90%', end: 'bottom 10%',
+                            toggleActions: 'restart reverse restart reverse'
+                        }
+                    }
+                );
+            });
+        });
+    </script>
+</body>
+</html>
+
