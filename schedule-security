@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Jadwal Satpam Modern</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .calendar-day {
+            min-height: 140px; /* Diubah agar lebih pendek dan fleksibel */
+            position: relative;
+        }
+        .day-number {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            z-index: 10;
+            background-color: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(2px);
+            padding: 2px 5px;
+            border-radius: 6px;
+        }
+        .draggable {
+            cursor: move;
+            user-select: none;
+        }
+        .dragging {
+            opacity: 0.8;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .schedule-entry {
+            transition: background-color 0.3s ease;
+        }
+        .print-only {
+            display: none;
+        }
+        
+        /* Sembunyikan scrollbar di kotak jadwal */
+        .schedule-container-marker::-webkit-scrollbar {
+            display: none;
+        }
+        .schedule-container-marker {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        
+        .holiday-tooltip {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, -110%);
+            background-color: #1f2937;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            z-index: 20;
+            transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+            pointer-events: none;
+        }
+
+        .holiday-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1f2937 transparent transparent transparent;
+        }
+
+        .calendar-day:hover .holiday-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        #sidebar-trigger {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 20px;
+            height: 100%;
+            z-index: 60;
+        }
+
+        @page {
+            size: landscape;
+            margin: 0.5in;
+        }
+
+        @media print {
+            .container.mx-auto {
+                margin: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                padding: 0 !important;
+            }
+            
+            html, body {
+                height: 100%;
+                font-size: 10px;
+            }
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-container {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+                border: none;
+                display: flex;
+                flex-direction: column;
+            }
+            main {
+                display: none !important;
+            }
+            #print-calendar-container.print-only {
+                display: flex;
+                flex-direction: column;
+                flex-grow: 1;
+                gap: 5px;
+            }
+            .print-footer.print-only {
+                display: grid;
+            }
+
+            .print-calendar-row {
+                display: grid;
+                grid-template-columns: repeat(15, 1fr);
+                gap: 2px;
+                flex: 1;
+            }
+            .print-day {
+                border: 1px solid #999;
+                padding: 2px;
+                display: flex;
+                flex-direction: column;
+                gap: 1px;
+            }
+            .print-day.holiday {
+                background-color: #fecdd3 !important;
+            }
+            .print-day.sunday {
+                background-color: #ffe4e6 !important;
+            }
+            .print-day-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-weight: bold;
+                margin-bottom: 2px;
+            }
+            .print-day-initial {
+                font-size: 8px;
+                color: #555;
+            }
+            .print-day-number {
+                font-weight: bold;
+            }
+            .print-schedule-entry {
+                padding: 2px;
+                border-radius: 2px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-size: 9px;
+            }
+             header h1 {
+                font-size: 24px;
+                margin-bottom: 0;
+             }
+             header {
+                margin-bottom: 1rem;
+             }
+             header p {
+                font-size: 14px;
+             }
+            .print-footer {
+                grid-template-columns: 1.5fr 1.5fr 1fr 1fr;
+                gap: 20px;
+                margin-top: auto;
+                padding-top: 10px;
+                border-top: 1px solid #ccc;
+                flex-shrink: 0;
+                page-break-inside: avoid;
+            }
+            .print-footer-section {
+                text-align: center;
+            }
+            .print-footer-section h4 {
+                font-weight: bold;
+                margin-bottom: 8px;
+                font-size: 11px;
+            }
+            .print-footer-section .sign-space {
+                 height: 50px;
+            }
+            .print-footer-section .sign-name {
+                font-weight: bold;
+                border-top: 1px solid black;
+                padding-top: 4px;
+            }
+             .print-footer-keterangan {
+                text-align: left;
+                font-size: 9px;
+             }
+             .keterangan-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-bottom: 2px;
+             }
+             .keterangan-color-box {
+                width: 10px;
+                height: 10px;
+                border: 1px solid #666;
+             }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+    <div id="sidebar-trigger" class="no-print"></div>
+
+    <!-- Navigasi Samping (Sidebar) -->
+    <aside id="sidebar" class="fixed top-0 left-0 z-50 w-80 h-full bg-white shadow-xl p-4 transform -translate-x-full no-print overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-bold text-slate-900">Menu Kontrol</h2>
+            <button id="closeSidebarBtn" class="p-2 rounded-full hover:bg-slate-200 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        
+        <!-- Panel Kontrol -->
+        <div id="control-panel" class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+            <h3 class="font-bold text-lg mb-4 border-b pb-2">Panel Kontrol</h3>
+            <div class="space-y-3">
+                <button id="generateScheduleBtn" class="w-full bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9H7.83a2 2 0 0 1-1.42-.59L3 17"></path><path d="M3 17V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"></path><path d="M21 12a9 9 0 0 0-9-9H7.83a2 2 0 0 0-1.42.59L3 7"></path><path d="M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path></svg>
+                    Generate Otomatis
+                </button>
+                 <button id="exportDataBtn" class="w-full bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Simpan ke File
+                </button>
+                <button id="importDataBtn" class="w-full bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    Buka dari File
+                </button>
+                <button id="manageGuardsBtn" class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    Kelola Satpam
+                </button>
+                <button id="manageShiftsBtn" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Kelola Shift
+                </button>
+                 <button onclick="window.print()" class="w-full bg-emerald-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    Cetak Jadwal
+                </button>
+                <button id="resetDataBtn" class="w-full bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                    Reset Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Daftar Satpam -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+            <h3 class="font-bold text-lg mb-4 border-b pb-2">Daftar Satpam</h3>
+            <div id="guardsList" class="space-y-2 max-h-48 overflow-y-auto">
+                <!-- Satpam akan ditambahkan oleh JS -->
+            </div>
+        </div>
+
+        <!-- Daftar Shift -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <h3 class="font-bold text-lg mb-4 border-b pb-2">Pilih Shift</h3>
+            <div id="shiftsList" class="space-y-2">
+                <!-- Shift akan ditambahkan oleh JS -->
+            </div>
+        </div>
+    </aside>
+
+    <!-- Custom Notification -->
+    <div id="notification" class="fixed top-5 left-1/2 -translate-x-1/2 bg-red-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg text-sm z-[100] hidden">
+        Pesan notifikasi di sini.
+    </div>
+
+
+    <div class="container mx-auto p-4 md:p-8 print-container">
+        
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <div class="mx-auto">
+                <h1 class="text-3xl font-bold text-slate-900">JADWAL DINAS SATPAM</h1>
+                <p id="print-month-year" class="text-slate-500 mt-1"></p>
+            </div>
+        </header>
+
+        <!-- Panel Kanan: Kalender Jadwal -->
+        <main class="w-full bg-white p-4 md:p-6 rounded-xl shadow-md">
+            <!-- Navigasi Kalender -->
+            <div class="flex justify-between items-center mb-4">
+                <button id="prevMonthBtn" class="p-2 rounded-full hover:bg-slate-100 transition-colors no-print">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                </button>
+                <h2 id="currentMonthYear" class="text-xl font-bold"></h2>
+                <button id="nextMonthBtn" class="p-2 rounded-full hover:bg-slate-100 transition-colors no-print">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
+            </div>
+
+            <!-- Header Hari Kalender -->
+            <div class="calendar-grid mb-1">
+                <div class="font-semibold text-center text-sm text-slate-500 py-2">SEN</div>
+                <div class="font-semibold text-center text-sm text-slate-500 py-2">SEL</div>
+                <div class="font-semibold text-center text-sm text-slate-500 py-2">RAB</div>
+                <div class="font-semibold text-center text-sm text-slate-500 py-2">KAM</div>
+                <div class="font-semibold text-center text-sm text-slate-500 py-2">JUM</div>
+                <div class="font-semibold text-center text-sm text-slate-500 py-2 text-red-500">SAB</div>
+                <div class="font-semibold text-center text-sm text-slate-500 py-2 text-red-500">MIN</div>
+            </div>
+            
+            <!-- Kalender -->
+            <div id="calendar" class="calendar-grid">
+                <!-- Hari akan ditambahkan oleh JS -->
+            </div>
+        </main>
+        
+        <!-- Kalender Cetak -->
+        <div id="print-calendar-container" class="print-only"></div>
+
+        <!-- Footer Cetak -->
+        <div class="print-only print-footer">
+            <div class="print-footer-section print-footer-keterangan">
+                <h4 class="border-b border-black pb-1">KETERANGAN</h4>
+                <div id="print-keterangan-list"></div>
+            </div>
+            <div class="print-footer-section">
+                <h4 class="border-b border-black pb-1">PESAN KOORDINATOR</h4>
+                <div class="h-20 text-left text-xs p-1">
+                    - Tingkatkan kewaspadaan.<br>
+                    - Jaga kebersihan pos jaga.<br>
+                    - Lakukan patroli secara berkala.
+                </div>
+            </div>
+            <div class="print-footer-section">
+                <h4 class="border-b border-black pb-1">Dibuat oleh,</h4>
+                <div class="sign-space"></div>
+                <p class="sign-name">(_________________________)</p>
+                <p>Supervisor</p>
+            </div>
+            <div class="print-footer-section">
+                <h4 class="border-b border-black pb-1">Disetujui oleh,</h4>
+                <div class="sign-space"></div>
+                <p class="sign-name">(_________________________)</p>
+                <p>Manajer Keamanan</p>
+            </div>
+        </div>
+
+    </div>
+    
+    <!-- Modal Kelola Satpam -->
+    <div id="guardsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden no-print">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <h3 class="font-bold text-xl mb-4">Kelola Daftar Satpam</h3>
+            <form id="addGuardForm" class="flex gap-2 mb-4">
+                <input type="text" id="guardNameInput" placeholder="Nama Satpam Baru" class="flex-grow p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+                <button type="submit" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 transition">Tambah</button>
+            </form>
+            <div id="guardsModalList" class="space-y-2 max-h-64 overflow-y-auto">
+                <!-- Daftar di modal -->
+            </div>
+            <button id="closeGuardsModal" class="mt-6 w-full bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-md hover:bg-slate-300 transition">Tutup</button>
+        </div>
+    </div>
+
+    <!-- Modal Kelola Shift -->
+    <div id="shiftsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden no-print">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+            <h3 class="font-bold text-xl mb-4">Kelola Shift Kerja</h3>
+            <form id="addShiftForm" class="space-y-3 mb-4">
+                <input type="text" id="shiftNameInput" placeholder="Nama Shift (cth: Pagi)" class="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none" required>
+                <div class="flex gap-2">
+                    <input type="text" id="shiftTimeInput" placeholder="Waktu (cth: 07:00 - 15:00)" class="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none" required>
+                    <input type="color" id="shiftColorInput" value="#3b82f6" class="p-1 h-10 w-12 border rounded-md cursor-pointer">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-indigo-700 transition">Tambah Shift</button>
+            </form>
+            <div id="shiftsModalList" class="space-y-2 max-h-64 overflow-y-auto">
+                <!-- Daftar di modal -->
+            </div>
+            <button id="closeShiftsModal" class="mt-6 w-full bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-md hover:bg-slate-300 transition">Tutup</button>
+        </div>
+    </div>
+    
+    <!-- Modal Detail Hari -->
+    <div id="dayDetailModal" class="fixed inset-0 flex items-center justify-center p-4 hidden no-print z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+            <h3 id="dayDetailModalTitle" class="font-bold text-xl mb-4">Detail Jadwal</h3>
+            
+            <!-- Form Tambah Jadwal -->
+            <form id="addScheduleForm" class="grid grid-cols-3 gap-2 items-center mb-4 border-b border-slate-200 pb-4">
+                <select id="addScheduleGuardSelect" class="col-span-1 p-2 border rounded-md bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"></select>
+                <select id="addScheduleShiftSelect" class="col-span-1 p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"></select>
+                <button type="submit" class="col-span-1 bg-emerald-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-emerald-700 transition flex items-center justify-center gap-2 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span>Tambah</span>
+                </button>
+            </form>
+
+            <div id="dayDetailModalList" class="space-y-3 max-h-80 overflow-y-auto">
+                <!-- Daftar jadwal harian -->
+            </div>
+            <button id="closeDayDetailModal" class="mt-6 w-full bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-md hover:bg-slate-300 transition">Tutup</button>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Reset -->
+    <div id="resetModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden no-print">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            <h3 class="font-bold text-xl mb-2">Anda Yakin?</h3>
+            <p class="text-slate-500 text-sm mb-6">Semua data satpam, shift, dan jadwal akan dihapus permanen dan dikembalikan ke data awal.</p>
+            <div class="flex justify-center gap-4">
+                <button id="cancelResetBtn" class="w-full bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-md hover:bg-slate-300 transition">Batal</button>
+                <button id="confirmResetBtn" class="w-full bg-red-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-red-700 transition">Ya, Reset</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Konfirmasi Generate -->
+    <div id="generateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden no-print">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-teal-100 mb-4">
+                <svg class="h-6 w-6 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <h3 class="font-bold text-xl mb-2">Generate Jadwal Otomatis?</h3>
+            <p class="text-slate-500 text-sm mb-6">Jadwal untuk bulan ini akan dihapus dan diganti dengan jadwal baru. Aksi ini tidak bisa dibatalkan.</p>
+            <div class="flex justify-center gap-4">
+                <button id="cancelGenerateBtn" class="w-full bg-slate-200 text-slate-800 font-semibold py-2 px-4 rounded-md hover:bg-slate-300 transition">Batal</button>
+                <button id="confirmGenerateBtn" class="w-full bg-teal-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-teal-700 transition">Ya, Generate</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="importFileInput" class="hidden" accept="application/json">
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Referensi Elemen DOM
+    const sidebar = document.getElementById('sidebar');
+    const sidebarTrigger = document.getElementById('sidebar-trigger');
+    const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+    const controlPanel = document.getElementById('control-panel');
+    const notificationEl = document.getElementById('notification');
+
+    const calendar = document.getElementById('calendar');
+    const currentMonthYearEl = document.getElementById('currentMonthYear');
+    const printMonthYearEl = document.getElementById('print-month-year');
+    const prevMonthBtn = document.getElementById('prevMonthBtn');
+    const nextMonthBtn = document.getElementById('nextMonthBtn');
+    
+    const guardsList = document.getElementById('guardsList');
+    const shiftsList = document.getElementById('shiftsList');
+
+    const manageGuardsBtn = document.getElementById('manageGuardsBtn');
+    const guardsModal = document.getElementById('guardsModal');
+    const closeGuardsModal = document.getElementById('closeGuardsModal');
+    const addGuardForm = document.getElementById('addGuardForm');
+    const guardNameInput = document.getElementById('guardNameInput');
+    const guardsModalList = document.getElementById('guardsModalList');
+
+    const manageShiftsBtn = document.getElementById('manageShiftsBtn');
+    const shiftsModal = document.getElementById('shiftsModal');
+    const closeShiftsModal = document.getElementById('closeShiftsModal');
+    const addShiftForm = document.getElementById('addShiftForm');
+    const shiftNameInput = document.getElementById('shiftNameInput');
+    const shiftTimeInput = document.getElementById('shiftTimeInput');
+    const shiftColorInput = document.getElementById('shiftColorInput');
+    const shiftsModalList = document.getElementById('shiftsModalList');
+    
+    const dayDetailModal = document.getElementById('dayDetailModal');
+    const dayDetailModalTitle = document.getElementById('dayDetailModalTitle');
+    const dayDetailModalList = document.getElementById('dayDetailModalList');
+    const closeDayDetailModal = document.getElementById('closeDayDetailModal');
+    const addScheduleForm = document.getElementById('addScheduleForm');
+    const addScheduleGuardSelect = document.getElementById('addScheduleGuardSelect');
+    const addScheduleShiftSelect = document.getElementById('addScheduleShiftSelect');
+
+    const resetDataBtn = document.getElementById('resetDataBtn');
+    const resetModal = document.getElementById('resetModal');
+    const cancelResetBtn = document.getElementById('cancelResetBtn');
+    const confirmResetBtn = document.getElementById('confirmResetBtn');
+    
+    const generateScheduleBtn = document.getElementById('generateScheduleBtn');
+    const generateModal = document.getElementById('generateModal');
+    const cancelGenerateBtn = document.getElementById('cancelGenerateBtn');
+    const confirmGenerateBtn = document.getElementById('confirmGenerateBtn');
+
+    const exportDataBtn = document.getElementById('exportDataBtn');
+    const importDataBtn = document.getElementById('importDataBtn');
+    const importFileInput = document.getElementById('importFileInput');
+
+    // State Aplikasi
+    let currentDate = new Date();
+    let guards = JSON.parse(localStorage.getItem('guards')) || [];
+    let shifts = JSON.parse(localStorage.getItem('shifts')) || [];
+    let schedule = JSON.parse(localStorage.getItem('schedule')) || {};
+    let nationalHolidays = {}; // State untuk menyimpan data hari libur
+    let selectedShiftId = null;
+    let draggedGuardId = null;
+    
+    // Inisialisasi data contoh jika kosong
+    function initializeDefaultData() {
+        if (guards.length === 0 && shifts.length === 0) {
+            guards = [
+                { id: `guard-${Date.now()}-1`, name: 'Kodir' },
+                { id: `guard-${Date.now()}-2`, name: 'Hery' },
+                { id: `guard-${Date.now()}-3`, name: 'Arsadi' },
+                { id: `guard-${Date.now()}-4`, name: 'Mustangin' },
+                { id: `guard-${Date.now()}-5`, name: 'Rizki' },
+                { id: `guard-${Date.now()}-6`, name: 'Agus' }
+            ];
+            shifts = [
+                { id: `shift-${Date.now()}-1`, name: 'Pagi', time: '07:00 - 15:00', color: '#3b82f6' },
+                { id: `shift-${Date.now()}-2`, name: 'Siang', time: '15:00 - 23:00', color: '#f97316' },
+                { id: `shift-${Date.now()}-3`, name: 'Malam', time: '23:00 - 07:00', color: '#1f2937' },
+                { id: `shift-${Date.now()}-4`, name: 'Libur', time: 'Lepas Dinas', color: '#16a34a' }
+            ];
+            saveData();
+        }
+    }
+
+    // Fungsi untuk menyimpan data ke Local Storage
+    function saveData() {
+        localStorage.setItem('guards', JSON.stringify(guards));
+        localStorage.setItem('shifts', JSON.stringify(shifts));
+        localStorage.setItem('schedule', JSON.stringify(schedule));
+    }
+
+    // --- Fungsi Baru: Mengambil Data Hari Libur ---
+    async function fetchHolidays(year, month) {
+        const cacheKey = `${year}-${month}`;
+        try {
+            // Menggunakan API publik untuk data hari libur Indonesia
+            const response = await fetch(`https://api-harilibur.vercel.app/api?year=${year}&month=${month}`);
+            if (!response.ok) {
+                nationalHolidays[cacheKey] = {}; // Set kosong jika error
+                return;
+            };
+            const holidays = await response.json();
+            
+            const monthHolidays = {};
+            holidays.forEach(holiday => {
+                if (holiday.is_national_holiday) {
+                    monthHolidays[holiday.holiday_date] = holiday.holiday_name;
+                }
+            });
+            nationalHolidays[cacheKey] = monthHolidays;
+        } catch (error) {
+            console.error("Gagal mengambil data hari libur:", error);
+            nationalHolidays[cacheKey] = {}; // Set kosong jika error
+        }
+    }
+
+    // --- Render Functions ---
+    async function renderCalendar() { // Dibuat menjadi async untuk menunggu data libur
+        calendar.innerHTML = '';
+        currentDate.setDate(1);
+        const month = currentDate.getMonth();
+        const year = currentDate.getFullYear();
+        
+        const monthForAPI = month + 1;
+        const cacheKey = `${year}-${monthForAPI}`;
+        if (!nationalHolidays[cacheKey]) {
+           await fetchHolidays(year, monthForAPI); // Ambil data jika belum ada di cache
+        }
+        
+        const monthYearText = `${currentDate.toLocaleString('id-ID', { month: 'long' })} ${year}`;
+        currentMonthYearEl.textContent = monthYearText;
+        printMonthYearEl.textContent = `PERIODE: ${monthYearText.toUpperCase()}`;
+
+
+        const firstDayIndex = (currentDate.getDay() + 6) % 7;
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        const prevLastDay = new Date(year, month, 0).getDate();
+
+        // Hari dari bulan sebelumnya
+        for (let i = firstDayIndex; i > 0; i--) {
+            const dayEl = document.createElement('div');
+            dayEl.classList.add('bg-slate-50', 'text-slate-400', 'p-1', 'rounded-lg');
+            dayEl.innerHTML = `<span class="flex justify-end text-sm">${prevLastDay - i + 1}</span>`;
+            calendar.appendChild(dayEl);
+        }
+
+        // Hari di bulan ini
+        for (let i = 1; i <= lastDay; i++) {
+            const dayEl = document.createElement('div');
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            dayEl.dataset.date = dateStr;
+            
+            const dayNumberEl = document.createElement('span');
+            dayNumberEl.classList.add('day-number');
+            dayNumberEl.textContent = i;
+
+            const currentMonthHolidays = nationalHolidays[cacheKey] || {};
+            const holidayName = currentMonthHolidays[dateStr];
+
+            const dayOfWeek = (firstDayIndex + i - 1) % 7; // 0=Mon, 6=Sun
+            const isSunday = dayOfWeek === 6;
+            
+            dayEl.classList.add('calendar-day', 'p-1', 'rounded-lg', 'transition-colors', 'flex', 'flex-col', 'cursor-pointer');
+            
+            if (holidayName) {
+                dayEl.classList.add('bg-rose-200', 'border', 'border-rose-300', 'hover:bg-rose-300');
+                dayNumberEl.classList.add('text-rose-800', 'font-bold');
+            } else if (isSunday) {
+                dayEl.classList.add('bg-rose-100', 'border', 'border-rose-200', 'hover:bg-rose-200');
+                dayNumberEl.classList.add('text-rose-700', 'font-bold');
+            } else {
+                 dayEl.classList.add('bg-white', 'border', 'border-slate-200', 'hover:bg-sky-50');
+                 dayNumberEl.classList.add('text-slate-600');
+            }
+            
+            dayEl.appendChild(dayNumberEl);
+            
+            if(holidayName) {
+                const holidayTooltip = document.createElement('div');
+                holidayTooltip.textContent = holidayName;
+                holidayTooltip.classList.add('holiday-tooltip');
+                dayEl.appendChild(holidayTooltip);
+            }
+            
+            // Container untuk jadwal agar bisa di-scroll
+            const scheduleContainer = document.createElement('div');
+            scheduleContainer.classList.add('schedule-container-marker', 'flex-grow', 'overflow-y-auto', 'flex', 'flex-col', 'gap-1', 'mt-6');
+            dayEl.appendChild(scheduleContainer);
+
+            if (schedule[dateStr]) {
+                 Object.entries(schedule[dateStr]).forEach(([guardId, shiftId]) => {
+                    const guard = guards.find(g => g.id === guardId);
+                    const shift = shifts.find(s => s.id === shiftId);
+                    if (guard && shift) {
+                        createScheduleEntry(scheduleContainer, guard, shift, dateStr, false); // No animation on initial render
+                    }
+                });
+            }
+            
+            dayEl.addEventListener('dragover', (e) => e.preventDefault());
+            dayEl.addEventListener('drop', handleDrop);
+            dayEl.addEventListener('click', (e) => {
+                if (e.target.closest('.schedule-entry')) return;
+                showDayDetail(dateStr);
+            });
+            
+            calendar.appendChild(dayEl);
+        }
+
+        // GSAP Animation for calendar days
+        gsap.from(calendar.querySelectorAll('.calendar-day'), {
+            opacity: 0,
+            scale: 0.95,
+            y: 10,
+            duration: 0.5,
+            stagger: 0.02,
+            ease: 'power2.out'
+        });
+        
+        // Generate print view
+        generatePrintView();
+    }
+    
+    function generatePrintView() {
+        const month = currentDate.getMonth();
+        const year = currentDate.getFullYear();
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        
+        const printContainer = document.getElementById('print-calendar-container');
+        printContainer.innerHTML = '';
+
+        const rows = [document.createElement('div'), document.createElement('div'), document.createElement('div')];
+        rows.forEach(row => row.classList.add('print-calendar-row'));
+
+        const dayInitials = ['M', 'S', 'S', 'R', 'K', 'J', 'S']; // Minggu, Senin, ...
+
+        for (let i = 1; i <= lastDay; i++) {
+            const date = new Date(year, month, i);
+            const dayOfWeek = date.getDay();
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            const cacheKey = `${year}-${month + 1}`;
+            const isHoliday = (nationalHolidays[cacheKey] || {})[dateStr];
+            const isSunday = dayOfWeek === 0;
+
+            const printDayEl = document.createElement('div');
+            printDayEl.classList.add('print-day');
+            if (isHoliday) {
+                printDayEl.classList.add('holiday');
+            } else if (isSunday) {
+                printDayEl.classList.add('sunday');
+            }
+            
+            const printDayHeader = document.createElement('div');
+            printDayHeader.classList.add('print-day-header');
+            
+            const printDayInitial = document.createElement('span');
+            printDayInitial.classList.add('print-day-initial');
+            printDayInitial.textContent = dayInitials[dayOfWeek];
+            printDayHeader.appendChild(printDayInitial);
+
+            const printDayNumber = document.createElement('div');
+            printDayNumber.classList.add('print-day-number');
+            printDayNumber.textContent = i;
+            printDayHeader.appendChild(printDayNumber);
+
+            printDayEl.appendChild(printDayHeader);
+
+            const scheduleForDay = schedule[dateStr] || {};
+            Object.entries(scheduleForDay).forEach(([guardId, shiftId]) => {
+                const guard = guards.find(g => g.id === guardId);
+                const shift = shifts.find(s => s.id === shiftId);
+                if (guard && shift) {
+                    const entry = document.createElement('div');
+                    entry.classList.add('print-schedule-entry');
+                    entry.textContent = `${guard.name.split(' ')[0]} (${shift.name.charAt(0)})`;
+                    entry.style.backgroundColor = shift.color;
+                    const textColor = (parseInt(shift.color.replace("#", ""), 16) > 0xffffff / 2) ? '#000' : '#fff';
+                    entry.style.color = textColor;
+                    printDayEl.appendChild(entry);
+                }
+            });
+
+            if (i <= 15) {
+                rows[0].appendChild(printDayEl);
+            } else if (i <= 30) {
+                rows[1].appendChild(printDayEl);
+            } else {
+                rows[2].appendChild(printDayEl);
+            }
+        }
+        
+        // Fill empty cells to maintain grid structure
+        while(rows[0].childElementCount < 15) { rows[0].appendChild(document.createElement('div')); }
+        while(rows[1].childElementCount < 15) { rows[1].appendChild(document.createElement('div')); }
+        while(rows[2].childElementCount > 0 && rows[2].childElementCount < 15) { rows[2].appendChild(document.createElement('div')); }
+
+        rows.forEach(row => {
+            if(row.hasChildNodes()) printContainer.appendChild(row);
+        });
+        
+        // Populate keterangan
+        const keteranganList = document.getElementById('print-keterangan-list');
+        keteranganList.innerHTML = '';
+        shifts.forEach(shift => {
+            const item = document.createElement('div');
+            item.classList.add('keterangan-item');
+            item.innerHTML = `
+                <div class="keterangan-color-box" style="background-color: ${shift.color};"></div>
+                <span>: ${shift.name} (${shift.time})</span>
+            `;
+            keteranganList.appendChild(item);
+        });
+    }
+    
+    function createScheduleEntry(container, guard, shift, dateStr, animate = true) {
+        const entry = document.createElement('div');
+        entry.classList.add('schedule-entry', 'text-white', 'text-xs', 'font-semibold', 'p-1', 'rounded', 'w-full');
+        entry.textContent = guard.name;
+        entry.style.backgroundColor = shift.color;
+        entry.dataset.guardId = guard.id;
+        entry.dataset.shiftId = shift.id;
+        entry.dataset.date = dateStr;
+        
+        entry.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const { guardId, date } = e.target.dataset;
+            if (schedule[date] && schedule[date][guardId]) {
+                delete schedule[date][guardId];
+                if (Object.keys(schedule[date]).length === 0) {
+                    delete schedule[date];
+                }
+                saveData();
+                renderCalendar();
+            }
+        });
+        
+        container.appendChild(entry);
+
+        if (animate) {
+            // GSAP Animation for new entry
+            gsap.from(entry, { opacity: 0, scale: 0.8, y: -10, duration: 0.3, ease: 'back.out(1.7)' });
+        }
+    }
+
+    function renderGuards() {
+        guardsList.innerHTML = '';
+        guardsModalList.innerHTML = '';
+        guards.forEach(guard => {
+            // Untuk panel kiri
+            const guardEl = document.createElement('div');
+            guardEl.textContent = guard.name;
+            guardEl.dataset.id = guard.id;
+            guardEl.classList.add('draggable', 'p-2', 'bg-slate-100', 'rounded-md', 'text-sm', 'font-medium', 'hover:bg-slate-200');
+            guardEl.draggable = true;
+            guardEl.addEventListener('dragstart', handleDragStart);
+            guardEl.addEventListener('dragend', handleDragEnd);
+            guardsList.appendChild(guardEl);
+
+            // Untuk modal
+            const guardModalEl = document.createElement('div');
+            guardModalEl.classList.add('flex', 'justify-between', 'items-center', 'p-2', 'bg-slate-50', 'rounded-md');
+            guardModalEl.innerHTML = `<span>${guard.name}</span><button data-id="${guard.id}" class="delete-guard-btn text-red-500 hover:text-red-700">&times;</button>`;
+            guardsModalList.appendChild(guardModalEl);
+        });
+    }
+
+    function renderShifts() {
+        shiftsList.innerHTML = '';
+        shiftsModalList.innerHTML = '';
+        shifts.forEach(shift => {
+            // Untuk panel kiri
+            const shiftEl = document.createElement('div');
+            shiftEl.dataset.id = shift.id;
+            shiftEl.classList.add('p-2', 'rounded-md', 'text-sm', 'font-medium', 'cursor-pointer', 'transition-all');
+            shiftEl.innerHTML = `
+                <div class="font-bold">${shift.name}</div>
+                <div class="text-xs">${shift.time}</div>`;
+            shiftEl.style.border = `2px solid ${selectedShiftId === shift.id ? shift.color : 'transparent'}`;
+            shiftEl.style.backgroundColor = `${shift.color}20`; // Transparan
+            shiftEl.style.color = shift.color;
+
+            shiftEl.addEventListener('click', () => {
+                selectedShiftId = shift.id;
+                renderShifts();
+            });
+            shiftsList.appendChild(shiftEl);
+
+            // Untuk modal
+            const shiftModalEl = document.createElement('div');
+            shiftModalEl.classList.add('flex', 'justify-between', 'items-center', 'p-2', 'bg-slate-50', 'rounded-md');
+            shiftModalEl.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded-full" style="background-color: ${shift.color}"></span>
+                    <div>
+                        <span class="font-semibold">${shift.name}</span>
+                        <span class="text-xs text-slate-500">(${shift.time})</span>
+                    </div>
+                </div>
+                <button data-id="${shift.id}" class="delete-shift-btn text-red-500 hover:text-red-700">&times;</button>`;
+            shiftsModalList.appendChild(shiftModalEl);
+        });
+        if (!selectedShiftId && shifts.length > 0) {
+            selectedShiftId = shifts[0].id;
+            renderShifts();
+        }
+    }
+
+    // --- Event Handlers ---
+    function handleDragStart(e) {
+        draggedGuardId = e.target.dataset.id;
+        e.target.classList.add('dragging');
+        gsap.to(e.target, { 
+            rotation: 2, 
+            scale: 1.05, 
+            duration: 0.15, 
+            ease: 'power1.inOut', 
+            repeat: -1, 
+            yoyo: true 
+        });
+        closeSidebar(); // Automatically close the sidebar
+    }
+    
+    function handleDragEnd(e) {
+        e.target.classList.remove('dragging');
+        gsap.killTweensOf(e.target);
+        gsap.to(e.target, { rotation: 0, scale: 1, duration: 0.2, ease: 'power2.out' });
+    }
+    
+    function handleDrop(e) {
+        const dayEl = e.target.closest('.calendar-day');
+        if (!dayEl || !draggedGuardId || !selectedShiftId) return;
+
+        const date = dayEl.dataset.date;
+        const selectedShift = shifts.find(s => s.id === selectedShiftId);
+        if (!selectedShift) return;
+        
+        // Cek batasan shift
+        const isLimitedShift = ['pagi', 'siang', 'malam'].includes(selectedShift.name.toLowerCase());
+        if(isLimitedShift) {
+            const scheduledOnDate = schedule[date] || {};
+            let currentShiftCount = 0;
+            for (const guardId in scheduledOnDate) {
+                if (scheduledOnDate[guardId] === selectedShiftId) {
+                    currentShiftCount++;
+                }
+            }
+
+            if (currentShiftCount >= 2) {
+                showNotification(`Shift "${selectedShift.name}" sudah penuh (Maks. 2 orang).`);
+                draggedGuardId = null;
+                return; 
+            }
+        }
+        
+        if (!schedule[date]) {
+            schedule[date] = {};
+        }
+
+        schedule[date][draggedGuardId] = selectedShiftId;
+
+        saveData();
+        
+        const scheduleContainer = dayEl.querySelector('.schedule-container-marker');
+        if (!scheduleContainer) return;
+        scheduleContainer.innerHTML = '';
+        
+        Object.entries(schedule[date]).forEach(([guardId, shiftId]) => {
+            const guard = guards.find(g => g.id === guardId);
+            const shift = shifts.find(s => s.id === shiftId);
+            if (guard && shift) {
+                const animate = guardId === draggedGuardId;
+                createScheduleEntry(scheduleContainer, guard, shift, date, animate);
+            }
+        });
+
+        draggedGuardId = null;
+    }
+
+    // Navigasi Bulan
+    prevMonthBtn.addEventListener('click', () => {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        renderCalendar();
+    });
+    nextMonthBtn.addEventListener('click', () => {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        renderCalendar();
+    });
+    
+    // Modal Satpam
+    manageGuardsBtn.addEventListener('click', () => {
+        guardsModal.classList.remove('hidden');
+        gsap.fromTo(guardsModal, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'power2.out' });
+        gsap.fromTo(guardsModal.querySelector('div'), { y: -20 }, { y: 0, duration: 0.3, ease: 'power2.out' });
+    });
+    closeGuardsModal.addEventListener('click', () => {
+        gsap.to(guardsModal, { opacity: 0, scale: 0.9, duration: 0.2, ease: 'power2.in', onComplete: () => guardsModal.classList.add('hidden') });
+    });
+    
+    addGuardForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = guardNameInput.value.trim();
+        if (name) {
+            guards.push({ id: `guard-${Date.now()}`, name });
+            guardNameInput.value = '';
+            saveData();
+            renderGuards();
+        }
+    });
+    guardsModalList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('delete-guard-btn')) {
+            const id = e.target.dataset.id;
+            guards = guards.filter(g => g.id !== id);
+            // Hapus juga dari jadwal
+            Object.keys(schedule).forEach(date => {
+                if (schedule[date][id]) {
+                    delete schedule[date][id];
+                    if (Object.keys(schedule[date]).length === 0) {
+                       delete schedule[date];
+                    }
+                }
+            });
+            saveData();
+            renderGuards();
+            renderCalendar();
+        }
+    });
+
+    // Modal Shift
+    manageShiftsBtn.addEventListener('click', () => {
+        shiftsModal.classList.remove('hidden');
+        gsap.fromTo(shiftsModal, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'power2.out' });
+        gsap.fromTo(shiftsModal.querySelector('div'), { y: -20 }, { y: 0, duration: 0.3, ease: 'power2.out' });
+    });
+    closeShiftsModal.addEventListener('click', () => {
+         gsap.to(shiftsModal, { opacity: 0, scale: 0.9, duration: 0.2, ease: 'power2.in', onComplete: () => shiftsModal.classList.add('hidden') });
+    });
+    addShiftForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = shiftNameInput.value.trim();
+        const time = shiftTimeInput.value.trim();
+        const color = shiftColorInput.value;
+        if (name && time) {
+            shifts.push({ id: `shift-${Date.now()}`, name, time, color });
+            shiftNameInput.value = '';
+            shiftTimeInput.value = '';
+            saveData();
+            renderShifts();
+        }
+    });
+    shiftsModalList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('delete-shift-btn')) {
+            const idToDelete = e.target.dataset.id;
+            shifts = shifts.filter(s => s.id !== idToDelete);
+            
+            Object.keys(schedule).forEach(date => {
+                Object.keys(schedule[date]).forEach(guardId => {
+                    if (schedule[date][guardId] === idToDelete) {
+                        delete schedule[date][guardId];
+                    }
+                });
+                if (Object.keys(schedule[date]).length === 0) {
+                    delete schedule[date];
+                }
+            });
+
+            if (selectedShiftId === idToDelete) {
+                selectedShiftId = shifts.length > 0 ? shifts[0].id : null;
+            }
+
+            saveData();
+            renderShifts();
+            renderCalendar();
+        }
+    });
+    
+    // Modal Detail Hari
+    function showDayDetail(dateStr) {
+        const date = new Date(dateStr + 'T00:00:00');
+        dayDetailModalTitle.textContent = `Jadwal untuk ${date.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+        
+        dayDetailModalList.innerHTML = '';
+        const scheduledOnDate = schedule[dateStr] || {};
+
+        if (Object.keys(scheduledOnDate).length > 0) {
+            Object.entries(scheduledOnDate).forEach(([guardId, shiftId]) => {
+                const guard = guards.find(g => g.id === guardId);
+                const shift = shifts.find(s => s.id === shiftId);
+                if(guard && shift) {
+                    const el = document.createElement('div');
+                    el.classList.add('flex', 'items-center', 'p-3', 'rounded-lg');
+                    el.style.backgroundColor = `${shift.color}20`;
+                    el.innerHTML = `
+                        <span class="w-4 h-4 rounded-full mr-4" style="background-color:${shift.color}"></span>
+                        <span class="font-semibold text-slate-800 flex-grow">${guard.name}</span>
+                        <span class="text-sm font-medium text-slate-600">${shift.name} (${shift.time})</span>
+                    `;
+                    dayDetailModalList.appendChild(el);
+                }
+            });
+        } else {
+            dayDetailModalList.innerHTML = `<p class="text-center text-slate-500 py-4">Tidak ada jadwal untuk tanggal ini.</p>`;
+        }
+        
+        // Populate dropdowns
+        addScheduleGuardSelect.innerHTML = '<option value="">Pilih Satpam</option>';
+        guards.forEach(guard => {
+            if (!scheduledOnDate[guard.id]) { // Hanya tampilkan satpam yg belum terjadwal hari itu
+                const option = document.createElement('option');
+                option.value = guard.id;
+                option.textContent = guard.name;
+                addScheduleGuardSelect.appendChild(option);
+            }
+        });
+
+        addScheduleShiftSelect.innerHTML = '<option value="">Pilih Shift</option>';
+        shifts.forEach(shift => {
+            const option = document.createElement('option');
+            option.value = shift.id;
+            option.textContent = shift.name;
+            addScheduleShiftSelect.appendChild(option);
+        });
+
+        addScheduleForm.dataset.date = dateStr;
+
+        dayDetailModal.classList.remove('hidden');
+        gsap.fromTo(dayDetailModal, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'power2.out' });
+        gsap.fromTo(dayDetailModal.querySelector('div'), { y: -20 }, { y: 0, duration: 0.3, ease: 'power2.out' });
+    }
+    
+    function closeDayDetail() {
+        gsap.to(dayDetailModal, { opacity: 0, scale: 0.9, duration: 0.2, ease: 'power2.in', onComplete: () => dayDetailModal.classList.add('hidden') });
+    }
+
+    addScheduleForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const dateStr = e.target.dataset.date;
+        const guardId = addScheduleGuardSelect.value;
+        const shiftId = addScheduleShiftSelect.value;
+
+        if (!guardId || !shiftId) {
+            showNotification("Pilih satpam dan shift terlebih dahulu.");
+            return;
+        }
+
+        const selectedShift = shifts.find(s => s.id === shiftId);
+        if (!selectedShift) return;
+
+        if (!schedule[dateStr]) {
+            schedule[dateStr] = {};
+        }
+
+        // Cek batasan shift
+        const isLimitedShift = ['pagi', 'siang', 'malam'].includes(selectedShift.name.toLowerCase());
+        if(isLimitedShift) {
+            let currentShiftCount = 0;
+            for (const gId in schedule[dateStr]) {
+                if (schedule[dateStr][gId] === shiftId) {
+                    currentShiftCount++;
+                }
+            }
+            if (currentShiftCount >= 2) {
+                showNotification(`Shift "${selectedShift.name}" sudah penuh (Maks. 2 orang).`);
+                return;
+            }
+        }
+
+        schedule[dateStr][guardId] = shiftId;
+        saveData();
+        renderCalendar();
+        showDayDetail(dateStr); // Refresh modal content
+    });
+
+    closeDayDetailModal.addEventListener('click', closeDayDetail);
+    
+    // Reset Modal Logic
+    resetDataBtn.addEventListener('click', () => {
+        resetModal.classList.remove('hidden');
+        gsap.fromTo(resetModal, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'power2.out' });
+        gsap.fromTo(resetModal.querySelector('div'), { y: -20 }, { y: 0, duration: 0.3, ease: 'power2.out' });
+    });
+
+    cancelResetBtn.addEventListener('click', () => {
+        gsap.to(resetModal, { opacity: 0, scale: 0.9, duration: 0.2, ease: 'power2.in', onComplete: () => resetModal.classList.add('hidden') });
+    });
+
+    confirmResetBtn.addEventListener('click', () => {
+        // Clear local storage
+        localStorage.removeItem('guards');
+        localStorage.removeItem('shifts');
+        localStorage.removeItem('schedule');
+
+        // Reset state variables
+        guards = [];
+        shifts = [];
+        schedule = {};
+        selectedShiftId = null;
+
+        // Re-initialize with default data
+        initializeDefaultData();
+
+        // Re-render everything
+        renderGuards();
+        renderShifts();
+        renderCalendar();
+
+        // Hide modal
+        gsap.to(resetModal, { opacity: 0, scale: 0.9, duration: 0.2, ease: 'power2.in', onComplete: () => resetModal.classList.add('hidden') });
+    });
+
+    // --- Sidebar Logic ---
+    function openSidebar() {
+        sidebar.classList.remove('-translate-x-full');
+    }
+
+    function closeSidebar() {
+        sidebar.classList.add('-translate-x-full');
+    }
+    
+    // --- Notifikasi ---
+    function showNotification(message, type = 'error') {
+        notificationEl.textContent = message;
+
+        notificationEl.classList.remove('bg-red-600', 'bg-green-600');
+        if (type === 'success') {
+            notificationEl.classList.add('bg-green-600');
+        } else {
+            notificationEl.classList.add('bg-red-600');
+        }
+
+        notificationEl.classList.remove('hidden');
+        gsap.fromTo(notificationEl, 
+            { y: -20, opacity: 0 }, 
+            { y: 0, opacity: 1, duration: 0.3, ease: 'power2.out' }
+        );
+        gsap.to(notificationEl, { 
+            opacity: 0, 
+            y: -20, 
+            duration: 0.3, 
+            delay: 3, 
+            ease: 'power2.in',
+            onComplete: () => notificationEl.classList.add('hidden')
+        });
+    }
+    
+    // --- Generate Schedule Logic ---
+    function generateAutomaticSchedule() {
+        const month = currentDate.getMonth();
+        const year = currentDate.getFullYear();
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        
+        const pagiShift = shifts.find(s => s.name.toLowerCase() === 'pagi');
+        const siangShift = shifts.find(s => s.name.toLowerCase() === 'siang');
+        const malamShift = shifts.find(s => s.name.toLowerCase() === 'malam');
+        
+        if (guards.length !== 6) {
+            showNotification("Generate Otomatis mode ini butuh tepat 6 satpam.");
+            return;
+        }
+        if (!pagiShift || !siangShift || !malamShift) {
+            showNotification("Butuh shift 'Pagi', 'Siang', dan 'Malam' untuk generate.");
+            return;
+        }
+
+        for (let i = 1; i <= lastDay; i++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+            if (schedule[dateStr]) delete schedule[dateStr];
+        }
+
+        let shuffledGuards = [...guards].sort(() => Math.random() - 0.5);
+
+        const teamA = [shuffledGuards[0].id, shuffledGuards[1].id];
+        const teamB = [shuffledGuards[2].id, shuffledGuards[3].id];
+        const teamC = [shuffledGuards[4].id, shuffledGuards[5].id];
+
+        for (let day = 1; day <= lastDay; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            schedule[dateStr] = {};
+            
+            const cycleDay = (day - 1) % 21;
+
+            let currentPagi, currentSiang, currentMalam;
+
+            if (cycleDay < 7) {
+                currentPagi = teamA;
+                currentSiang = teamB;
+                currentMalam = teamC;
+            } else if (cycleDay < 14) {
+                currentPagi = teamC;
+                currentSiang = teamA;
+                currentMalam = teamB;
+            } else {
+                currentPagi = teamB;
+                currentSiang = teamC;
+                currentMalam = teamA;
+            }
+            
+            schedule[dateStr][currentPagi[0]] = pagiShift.id;
+            schedule[dateStr][currentPagi[1]] = pagiShift.id;
+            
+            schedule[dateStr][currentSiang[0]] = siangShift.id;
+            schedule[dateStr][currentSiang[1]] = siangShift.id;
+
+            schedule[dateStr][currentMalam[0]] = malamShift.id;
+            schedule[dateStr][currentMalam[1]] = malamShift.id;
+        }
+
+        saveData();
+        renderCalendar();
+        showNotification("Jadwal baru dengan rotasi 7 hari telah dibuat!", "success");
+    }
+    
+    // --- Ekspor & Impor Logic ---
+    function exportData() {
+        const dataToSave = {
+            guards,
+            shifts,
+            schedule
+        };
+        const dataStr = JSON.stringify(dataToSave, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.download = `jadwal-satpam-${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2,'0')}.json`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+        showNotification("Jadwal berhasil disimpan ke file!", "success");
+    }
+
+    importDataBtn.addEventListener('click', () => {
+        importFileInput.click();
+    });
+
+    importFileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (importedData.guards && importedData.shifts && importedData.schedule) {
+                    guards = importedData.guards;
+                    shifts = importedData.shifts;
+                    schedule = importedData.schedule;
+                    saveData();
+                    renderGuards();
+                    renderShifts();
+                    renderCalendar();
+                    showNotification("Jadwal berhasil dimuat dari file!", "success");
+                } else {
+                    showNotification("Format file tidak valid.");
+                }
+            } catch (error) {
+                showNotification("Gagal membaca file. Pastikan file JSON valid.");
+                console.error("Error parsing JSON:", error);
+            }
+        };
+        reader.readAsText(file);
+        importFileInput.value = '';
+    });
+
+    exportDataBtn.addEventListener('click', exportData);
+
+    generateScheduleBtn.addEventListener('click', () => {
+        generateModal.classList.remove('hidden');
+        gsap.fromTo(generateModal, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'power2.out' });
+        gsap.fromTo(generateModal.querySelector('div'), { y: -20 }, { y: 0, duration: 0.3, ease: 'power2.out' });
+    });
+    
+    cancelGenerateBtn.addEventListener('click', () => {
+        gsap.to(generateModal, { opacity: 0, scale: 0.9, duration: 0.2, ease: 'power2.in', onComplete: () => generateModal.classList.add('hidden') });
+    });
+    
+    confirmGenerateBtn.addEventListener('click', () => {
+        gsap.to(generateModal, { opacity: 0, scale: 0.9, duration: 0.2, ease: 'power2.in', onComplete: () => {
+            generateModal.classList.add('hidden');
+            generateAutomaticSchedule();
+        }});
+    });
+
+    sidebarTrigger.addEventListener('mouseenter', openSidebar);
+    sidebar.addEventListener('mouseleave', closeSidebar);
+    closeSidebarBtn.addEventListener('click', closeSidebar);
+    controlPanel.addEventListener('click', (e) => {
+        if(e.target.closest('button')) {
+            closeSidebar();
+        }
+    });
+
+    // Inisialisasi Aplikasi
+    initializeDefaultData();
+    renderCalendar();
+    renderGuards();
+    renderShifts();
+});
+</script>
+
+</body>
+</html>
