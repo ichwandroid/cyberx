@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const formData = new FormData();
         formData.append('fileName', fileName);
+        formData.append('originalFileName', file.name);
         formData.append('file', file);
         formData.append('mimeType', file.type);
 
