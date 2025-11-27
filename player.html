@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Materi</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-400 to-blue-500 min-h-screen flex items-center justify-center p-4">
+    <div id="playerContainer" class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-2xl">
+        <h1 id="title" class="text-2xl font-bold text-center mb-6 text-gray-800">Memuat Player...</h1>
+        <div id="mediaPlayer" class="flex justify-center items-center">
+             <!-- Animasi Loading -->
+            <div class="text-center">
+                <svg class="animate-spin -ml-1 mr-3 h-12 w-12 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-gray-600 mt-2">Sedang memuat file...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Ganti dengan Web App URL dari Google Apps Script Anda
+            const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzXXHrwoAgyuxRI9sUUWJSuJJfxboew71b8uK8CTAm6q7R-zXJD8jzUGJd9HgD3Kzri/exec';
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const fileId = urlParams.get('id');
+
+            if (!fileId) {
+                document.getElementById('title').textContent = 'Error: ID File Tidak Ditemukan';
+                document.getElementById('mediaPlayer').innerHTML = '<p class="text-red-500">Halaman ini memerlukan ID file yang valid di URL.</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${GOOGLE_SCRIPT_URL}?id=${fileId}`);
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    document.getElementById('title').textContent = data.fileName;
+                    const playerElement = document.getElementById('mediaPlayer');
+
+                    if (data.mimeType.startsWith('audio/')) {
+                        playerElement.innerHTML = `<audio controls class="w-full"><source src="${data.downloadUrl}" type="${data.mimeType}">Browser Anda tidak mendukung audio player.</audio>`;
+                    } else if (data.mimeType.startsWith('video/')) {
+                        playerElement.innerHTML = `<video controls class="w-full rounded-lg shadow-lg"><source src="${data.downloadUrl}" type="${data.mimeType}">Browser Anda tidak mendukung video player.</video>`;
+                    } else {
+                        playerElement.innerHTML = '<p class="text-red-500">Tipe file tidak didukung untuk player ini.</p>';
+                    }
+                } else {
+                    throw new Error(data.message || 'Gagal memuat info file.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('title').textContent = 'Terjadi Kesalahan';
+                document.getElementById('mediaPlayer').innerHTML = `<p class="text-red-500">${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
