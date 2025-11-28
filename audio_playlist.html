@@ -51,6 +51,7 @@
             text-align: center;
             background: linear-gradient(to right, #818cf8, #c084fc);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             letter-spacing: -0.025em;
             text-shadow: 0 0 30px rgba(129, 140, 248, 0.3);
@@ -180,25 +181,6 @@
                 font-size: 2rem;
             }
         }
-
-        .upload-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-            border-radius: 0.75rem;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-        }
-
-        .upload-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
-        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -216,20 +198,6 @@
 <body>
     <div class="container">
         <h1>Audio Library</h1>
-
-        <!-- Upload Section -->
-        <div style="text-align: center; margin-bottom: 2rem;">
-            <input type="file" id="local-file-input" accept="audio/*" style="display: none;">
-            <label for="local-file-input" class="upload-btn">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                </svg>
-                Putar File Lokal
-            </label>
-            <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem;">
-                *File hanya diputar di browser ini & tidak disimpan ke server
-            </p>
-        </div>
 
         <div class="glass-panel">
             <div class="table-container">
@@ -307,47 +275,6 @@
                     correctLevel: QRCode.CorrectLevel.H
                 });
             });
-        });
-
-        // Handle Local File Upload
-        document.getElementById('local-file-input').addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const objectUrl = URL.createObjectURL(file);
-            const tbody = document.querySelector('tbody');
-
-            const newRow = document.createElement('tr');
-            newRow.style.animation = 'fadeIn 0.5s ease-out';
-
-            newRow.innerHTML = `
-                <td>
-                    <div class="file-name">
-                        <svg class="icon-music" viewBox="0 0 24 24">
-                            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                        </svg>
-                        ${file.name}
-                        <span style="font-size: 0.7rem; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">LOKAL</span>
-                    </div>
-                </td>
-                <td>
-                    <audio controls>
-                        <source src="${objectUrl}" type="${file.type}">
-                        Browser Anda tidak mendukung elemen audio.
-                    </audio>
-                </td>
-                <td>
-                    <div style="text-align: center; color: var(--text-muted); font-size: 0.8rem;">
-                        Tidak tersedia<br>untuk file lokal
-                    </div>
-                </td>
-            `;
-
-            // Insert as the first row
-            tbody.insertBefore(newRow, tbody.firstChild);
-
-            // Reset input
-            this.value = '';
         });
     </script>
 </body>
